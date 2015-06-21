@@ -1,6 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Collections.Specialized;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -10,12 +10,15 @@ using NAudio.Wave;
 
 namespace vocoder.ClassLibrary
 {
+    [DefaultBindingProperty("Files")]
     public partial class RecordingPanel : UserControl
     {
         private string _outputFilename;
-        private string _outputFolder;
         private IWaveIn _waveIn;
         private WaveFileWriter _writer;
+        public event AudioFileHandler OnAddAudioFile;
+        public event AudioFileHandler OnDeleteAudioFile;
+        public delegate void AudioFileHandler(object obj, string file);
 
         public RecordingPanel()
         {
@@ -31,8 +34,6 @@ namespace vocoder.ClassLibrary
                 comboWasapiDevices.Enabled = false;
                 radioButtonWasapiLoopback.Enabled = false;
             }
-            _outputFolder = Path.Combine(Path.GetTempPath(), "NAudioDemo");
-            Directory.CreateDirectory(_outputFolder);
 
             // close the device if we change option only
             radioButtonWasapi.CheckedChanged += (s, a) => Cleanup();
@@ -41,25 +42,16 @@ namespace vocoder.ClassLibrary
             radioButtonWasapiLoopback.CheckedChanged += (s, a) => Cleanup();
         }
 
-        public String Folder
-        {
-            get { return _outputFolder; }
-            set { _outputFolder = value; }
-        }
+        public static string AudioFolder { get; set; }
 
-        public StringCollection Files
+        public ListBox.ObjectCollection Files
         {
-            get
-            {
-                var stringCollection = new StringCollection();
-                foreach (object item in listBoxRecordings.Items)
-                    stringCollection.Add(item.ToString());
-                return stringCollection;
-            }
+            get { return listBoxRecordings.Items; }
             set
             {
                 listBoxRecordings.Items.Clear();
-                foreach (string item in value)
+                if (value == null) return;
+                foreach (object item in value)
                     listBoxRecordings.Items.Add(item);
             }
         }
@@ -89,7 +81,7 @@ namespace vocoder.ClassLibrary
             }
 
             _outputFilename = String.Format("NAudioDemo {0:yyy-MM-dd HH-mm-ss}.wav", DateTime.Now);
-            _writer = new WaveFileWriter(Path.Combine(_outputFolder, _outputFilename), _waveIn.WaveFormat);
+            _writer = new WaveFileWriter(Path.Combine(AudioFolder, _outputFilename), _waveIn.WaveFormat);
             _waveIn.StartRecording();
             SetControlStates(true);
         }
@@ -131,8 +123,8 @@ namespace vocoder.ClassLibrary
                 progressBar1.Value = 0;
                 if (e.Exception != null)
                 {
-                    MessageBox.Show(String.Format((string) "A problem was encountered during recording {0}",
-                        (object) e.Exception.Message));
+                    MessageBox.Show(String.Format("A problem was encountered during recording {0}",
+                        e.Exception.Message));
                 }
                 int newItemIndex = listBoxRecordings.Items.Add(_outputFilename);
                 listBoxRecordings.SelectedIndex = newItemIndex;
@@ -186,6 +178,7 @@ namespace vocoder.ClassLibrary
         {
             Debug.WriteLine("StopRecording");
             if (_waveIn != null) _waveIn.StopRecording();
+            if (OnAddAudioFile != null) OnAddAudioFile(this, _outputFilename);
         }
 
         private void OnButtonStopRecordingClick(object sender, EventArgs e)
@@ -197,7 +190,7 @@ namespace vocoder.ClassLibrary
         {
             if (listBoxRecordings.SelectedItem != null)
             {
-                Process.Start(Path.Combine(_outputFolder, (string) listBoxRecordings.SelectedItem));
+                Process.Start(Path.Combine(AudioFolder, (string) listBoxRecordings.SelectedItem));
             }
         }
 
@@ -214,12 +207,11 @@ namespace vocoder.ClassLibrary
             {
                 try
                 {
-                    File.Delete(Path.Combine(_outputFolder, (string) listBoxRecordings.SelectedItem));
-                    listBoxRecordings.Items.Remove(listBoxRecordings.SelectedItem);
-                    if (listBoxRecordings.Items.Count > 0)
-                    {
-                        listBoxRecordings.SelectedIndex = 0;
-                    }
+                    var file = (string) listBoxRecordings.SelectedItem;
+                    File.Delete(Path.Combine(AudioFolder, file));
+                    listBoxRecordings.Items.Remove(file);
+                    if (listBoxRecordings.Items.Count > 0) listBoxRecordings.SelectedIndex = 0;
+                    if (OnDeleteAudioFile != null) OnDeleteAudioFile(this, file);
                 }
                 catch (Exception)
                 {
@@ -230,7 +222,7 @@ namespace vocoder.ClassLibrary
 
         private void OnOpenFolderClick(object sender, EventArgs e)
         {
-            Process.Start(_outputFolder);
+            Process.Start(AudioFolder);
         }
     }
 }

@@ -1,10 +1,17 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Numerics;
 using FFTWSharp;
 using NAudio.Wave;
 
 namespace vocoder.ClassLibrary
 {
+    /// <summary>
+    ///     Вычисление спектра огибающей функции.
+    ///     Данные нарезаются на фрагменты заданной длины.
+    /// </summary>
     public class SpectrumBuilder : IDisposable
     {
         private readonly double[] _data;
@@ -17,35 +24,43 @@ namespace vocoder.ClassLibrary
             _frequency = frequency;
             var fftw = new fftw_complexarray(_length);
             fftw.SetZeroData();
-            _data = fftw.GetData_double();
+            _data = fftw.GetData_Real();
         }
 
         public void Dispose()
         {
         }
 
-        public SpectrumBuilder Add(WaveStream waveStream)
+        public void Add(WaveStream waveStream)
         {
-            using (var reader = new WaveFileReader(waveStream))
+            var newFormat = new WaveFormat(_frequency, 16, 1);
+            using (var waveFormatConversionStream = new WaveFormatConversionStream(newFormat, waveStream))
             {
-                var newFormat = new WaveFormat(_frequency, 8, 1);
-                using (var waveFormatConversionStream = new WaveFormatConversionStream(newFormat, reader))
+                var reader = new BinaryReader(waveFormatConversionStream);
+                try
                 {
-                    var buffer = new byte[_length];
-                    while (waveFormatConversionStream.Read(buffer, 0, _length) == _length)
+                    for (;;)
                     {
-                        var fftw = new fftw_complexarray(Enumerable.Cast<double>(buffer).ToArray());
-                        double[] data = fftw.GetData_double();
-                        for (int i = 0; i < _length; i++) _data[i] += Math.Abs(data[i]);
+                        var list = new List<Int16>();
+                        for (int i = 0; i < _length; i++)
+                        {
+                            list.Add(reader.ReadInt16());
+                        }
+                        var fftw = new fftw_complexarray(list.Select(x => (Complex) x).ToArray());
+                        double[] data = fftw.GetData_Real();
+                        for (int i = 0; i < _length; i++)
+                            _data[i] = Math.Max(_data[i], Math.Abs(data[i]));
                     }
                 }
+                catch
+                {
+                }
             }
-            return this;
         }
 
-        public double[] Normalize()
+        public double[] GetData()
         {
-            double s = _data.Sum();
+            double s = Math.Sqrt(_data.Sum(x => x*x));
             return _data.Select(x => x/s).ToArray();
         }
     }

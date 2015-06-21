@@ -7,3 +7,6 @@
 [submodule "NAudio"]
 	path = NAudio
 	url = https://github.com/naudio/NAudio.git
+[submodule "LibSVMsharp"]
+	path = LibSVMsharp
+	url = https://github.com/ccerhan/LibSVMsharp.git
