@@ -20,12 +20,18 @@ namespace vocoder.ClassLibrary
 
         public double GetValue()
         {
-            var fftw1 = new fftw_complexarray(_array1.Select(x => (Complex) x).ToArray());
-            var fftw2 = new fftw_complexarray(_array2.Reverse().Select(x => (Complex) x).ToArray());
-            var fftw =
-                new fftw_complexarray(
-                    fftw1.GetData_Real().Zip(fftw2.GetData_Real(), (x, y) => (Complex) (x*y)).ToArray());
-            return fftw.GetData_Real()[0];
+            int count = _array1.Length;
+            var input1 = new fftw_complexarray(_array1.Select(x => new Complex(x, 0)).ToArray());
+            var input2 = new fftw_complexarray(_array2.Reverse().Select(x => new Complex(x, 0)).ToArray());
+            var output1 = new fftw_complexarray(count);
+            var output2 = new fftw_complexarray(count);
+            fftw_plan.dft_1d(count, input1, output1, fftw_direction.Forward, fftw_flags.Estimate).Execute();
+            fftw_plan.dft_1d(count, input2, output2, fftw_direction.Forward, fftw_flags.Estimate).Execute();
+            Complex[] complexs = output1.GetData_Complex().Zip(output2.GetData_Complex(), (x, y) => (x*y)).ToArray();
+            var input3 = new fftw_complexarray(complexs);
+            var output3 = new fftw_complexarray(count);
+            fftw_plan.dft_1d(count, input3, output3, fftw_direction.Backward, fftw_flags.Estimate).Execute();
+            return output3.GetData_Complex()[0].Magnitude;
         }
     }
 }

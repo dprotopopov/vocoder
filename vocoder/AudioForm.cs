@@ -46,7 +46,7 @@ namespace vocoder
                     using (var waveFileReader = new WaveFileReader(Path.Combine(RecordingPanel.AudioFolder, file)))
                         spectrumBuilder.Add(waveFileReader);
                 }
-                double[] data = spectrumBuilder.GetData().ToArray();
+                double[] data = spectrumBuilder.GetData();
                 List<ClientCorrelation> list =
                     MdiParent1.ContactClassifier.Select(character => new ClientCorrelation
                     {
@@ -69,18 +69,22 @@ namespace vocoder
                     using (var waveFileReader = new WaveFileReader(Path.Combine(RecordingPanel.AudioFolder, file)))
                         waveBuilder.Add(waveFileReader);
                 }
-                double[] data = waveBuilder.GetData().ToArray();
+                Complex[] data = waveBuilder.GetData_Complex();
                 var soundCorrelations = new List<SoundCorrelation>();
                 foreach (var sound in MdiParent1.SoundsClassifier)
                 {
                     string phoneme = sound.Key;
-                    var fftw = new fftw_complexarray(data.Zip(sound.Value, (x, y) => (Complex) (x*y)).ToArray());
-                    List<double> array = fftw.GetData_Real().ToList();
-                    array.Sort();
-                    if (array.Count > MdiParent1.SinglePhonemeCount)
-                        array.RemoveRange(0, array.Count - MdiParent1.SinglePhonemeCount);
+                    int count = data.Length;
+                    Complex[] complexs = data.Zip(sound.Value, (x, y) => (x*y)).ToArray();
+                    var input = new fftw_complexarray(complexs);
+                    var output = new fftw_complexarray(count);
+                    fftw_plan.dft_1d(count, input, output, fftw_direction.Backward, fftw_flags.Estimate).Execute();
+                    List<double> list = output.GetData_Real().ToList();
+                    list.Sort();
+                    if (list.Count > MdiParent1.SinglePhonemeCount)
+                        list.RemoveRange(0, list.Count - MdiParent1.SinglePhonemeCount);
                     soundCorrelations.AddRange(
-                        array.Select(value => new SoundCorrelation {Phoneme = phoneme, Value = value}));
+                        list.Select(value => new SoundCorrelation {Phoneme = phoneme, Value = value}));
                     soundCorrelations.Sort();
                     if (soundCorrelations.Count > MdiParent1.TotalPhonemeCount)
                         soundCorrelations.RemoveRange(MdiParent1.TotalPhonemeCount,
@@ -106,12 +110,11 @@ namespace vocoder
                     using (var waveFileReader = new WaveFileReader(Path.Combine(RecordingPanel.AudioFolder, file)))
                         spectrumBuilder.Add(waveFileReader);
                 }
-                double[] data = spectrumBuilder.GetData().ToArray();
                 List<ClientCorrelation> clientCorrelations =
                     MdiParent1.ContactClassifier.Select(character => new ClientCorrelation
                     {
                         Id = character.Key,
-                        Value = new CorrelationBuilder(data, character.Value).GetValue()
+                        Value = new CorrelationBuilder(spectrumBuilder.GetData(), character.Value).GetValue()
                     }).ToList();
                 clientCorrelations.Sort();
                 int id = clientCorrelations[0].Id;
@@ -125,18 +128,22 @@ namespace vocoder
                                 new WaveFileReader(Path.Combine(RecordingPanel.AudioFolder,
                                     Database.ConvertTo<string>(((AudioFile) audioFile).FileName))))
                             waveBuilder.Add(waveFileReader);
-                    double[] doubles = waveBuilder.GetData().ToArray();
+                    Complex[] data = waveBuilder.GetData_Complex();
                     var soundCorrelations = new List<SoundCorrelation>();
                     foreach (var sound in MdiParent1.SoundsClassifier)
                     {
-                        string word = sound.Key;
-                        var fftw = new fftw_complexarray(doubles.Zip(sound.Value, (x, y) => (Complex) (x*y)).ToArray());
-                        List<double> array = fftw.GetData_Real().ToList();
-                        array.Sort();
-                        if (array.Count > MdiParent1.SinglePhonemeCount)
-                            array.RemoveRange(0, array.Count - MdiParent1.SinglePhonemeCount);
+                        string phoneme = sound.Key;
+                        int count = data.Length;
+                        Complex[] complexs = data.Zip(sound.Value, (x, y) => (x*y)).ToArray();
+                        var input = new fftw_complexarray(complexs);
+                        var output = new fftw_complexarray(count);
+                        fftw_plan.dft_1d(count, input, output, fftw_direction.Backward, fftw_flags.Estimate).Execute();
+                        List<double> list = output.GetData_Real().ToList();
+                        list.Sort();
+                        if (list.Count > MdiParent1.SinglePhonemeCount)
+                            list.RemoveRange(0, list.Count - MdiParent1.SinglePhonemeCount);
                         soundCorrelations.AddRange(
-                            array.Select(value => new SoundCorrelation {Phoneme = word, Value = value}));
+                            list.Select(value => new SoundCorrelation {Phoneme = phoneme, Value = value}));
                         soundCorrelations.Sort();
                         if (soundCorrelations.Count > MdiParent1.TotalPhonemeCount)
                             soundCorrelations.RemoveRange(MdiParent1.TotalPhonemeCount,
@@ -150,18 +157,22 @@ namespace vocoder
                     foreach (string file in recordingPanel1.Files)
                         using (var waveFileReader = new WaveFileReader(Path.Combine(RecordingPanel.AudioFolder, file)))
                             waveBuilder.Add(waveFileReader);
-                    double[] doubles = waveBuilder.GetData().ToArray();
+                    Complex[] data = waveBuilder.GetData_Complex();
                     var soundCorrelations = new List<SoundCorrelation>();
                     foreach (var sound in MdiParent1.SoundsClassifier)
                     {
-                        string word = sound.Key;
-                        var fftw = new fftw_complexarray(doubles.Zip(sound.Value, (x, y) => (Complex) (x*y)).ToArray());
-                        List<double> array = fftw.GetData_Real().ToList();
-                        array.Sort();
-                        if (array.Count > MdiParent1.SinglePhonemeCount)
-                            array.RemoveRange(0, array.Count - MdiParent1.SinglePhonemeCount);
+                        string phoneme = sound.Key;
+                        int count = data.Length;
+                        Complex[] complexs = data.Zip(sound.Value, (x, y) => (x*y)).ToArray();
+                        var input = new fftw_complexarray(complexs);
+                        var output = new fftw_complexarray(count);
+                        fftw_plan.dft_1d(count, input, output, fftw_direction.Backward, fftw_flags.Estimate).Execute();
+                        List<double> list = output.GetData_Real().ToList();
+                        list.Sort();
+                        if (list.Count > MdiParent1.SinglePhonemeCount)
+                            list.RemoveRange(0, list.Count - MdiParent1.SinglePhonemeCount);
                         soundCorrelations.AddRange(
-                            array.Select(value => new SoundCorrelation {Phoneme = word, Value = value}));
+                            list.Select(value => new SoundCorrelation {Phoneme = phoneme, Value = value}));
                         soundCorrelations.Sort();
                         if (soundCorrelations.Count > MdiParent1.TotalPhonemeCount)
                             soundCorrelations.RemoveRange(MdiParent1.TotalPhonemeCount,
@@ -170,7 +181,7 @@ namespace vocoder
                     password1 = soundCorrelations.Select(soundCorrelation => soundCorrelation.Phoneme).ToList();
                     password1.Sort();
                 }
-                var contact = (Contact)database.Load(new Contact() { Id = id }).First();
+                var contact = (Contact) database.Load(new Contact {Id = id}).First();
                 var accessGrantedForm = new AccessGrantedForm(password.SequenceEqual(password1))
                 {
                     Id = Database.ConvertTo<int>(contact.Id),

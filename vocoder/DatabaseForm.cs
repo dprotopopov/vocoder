@@ -142,24 +142,29 @@ namespace vocoder
                     using (var waveFileReader = new WaveFileReader(Path.Combine(RecordingPanel.AudioFolder, file)))
                         waveBuilder.Add(waveFileReader);
                 }
-                double[] data = waveBuilder.GetData().ToArray();
-                var list = new List<AudioForm.SoundCorrelation>();
+                Complex[] data = waveBuilder.GetData_Complex();
+                var soundCorrelations = new List<AudioForm.SoundCorrelation>();
                 foreach (var sound in MdiParent1.SoundsClassifier)
                 {
-                    string word = sound.Key;
-                    var fftw = new fftw_complexarray(data.Zip(sound.Value, (x, y) => (Complex) (x*y)).ToArray());
-                    List<double> array = fftw.GetData_Real().ToList();
-                    array.Sort();
-                    if (array.Count > MdiParent1.SinglePhonemeCount)
-                        array.RemoveRange(0, array.Count - MdiParent1.SinglePhonemeCount);
-                    list.AddRange(
-                        array.Select(value => new AudioForm.SoundCorrelation {Phoneme = word, Value = value}));
+                    string phoneme = sound.Key;
+                    int count = data.Length;
+                    Complex[] complexs = data.Zip(sound.Value, (x, y) => (x*y)).ToArray();
+                    var input = new fftw_complexarray(complexs);
+                    var output = new fftw_complexarray(count);
+                    fftw_plan.dft_1d(count, input, output, fftw_direction.Backward, fftw_flags.Estimate).Execute();
+                    List<double> list = output.GetData_Complex().Select(x=>x.Magnitude).ToList();
                     list.Sort();
-                    if (list.Count > MdiParent1.TotalPhonemeCount)
-                        list.RemoveRange(MdiParent1.TotalPhonemeCount, list.Count - MdiParent1.TotalPhonemeCount);
+                    if (list.Count > MdiParent1.SinglePhonemeCount)
+                        list.RemoveRange(0, list.Count - MdiParent1.SinglePhonemeCount);
+                    soundCorrelations.AddRange(
+                        list.Select(value => new AudioForm.SoundCorrelation {Phoneme = phoneme, Value = value}));
+                    soundCorrelations.Sort();
+                    if (soundCorrelations.Count > MdiParent1.TotalPhonemeCount)
+                        soundCorrelations.RemoveRange(MdiParent1.TotalPhonemeCount,
+                            soundCorrelations.Count - MdiParent1.TotalPhonemeCount);
                 }
-                var listBoxForm = new ListBoxForm(list.Select(item => item.Phoneme).Cast<object>(),
-                    list.Select(item => item.Value));
+                var listBoxForm = new ListBoxForm(soundCorrelations.Select(item => item.Phoneme).Cast<object>(),
+                    soundCorrelations.Select(item => item.Value));
                 listBoxForm.ShowDialog();
             }
         }

@@ -31,7 +31,7 @@ namespace vocoder.ClassLibrary
         {
         }
 
-        public double[] GetData()
+        public Complex[] GetData_Complex()
         {
             var length = (int) (_duration*_frequency);
             using (var memoryStream = new MemoryStream())
@@ -58,10 +58,14 @@ namespace vocoder.ClassLibrary
                             for (; i < length; i++)
                                 list.Add(0);
                         }
-                        var fftw = new fftw_complexarray(list.Select(x => (Complex) Math.Abs(x)).ToArray());
-                        var data = fftw.GetData_Real();
-                        double s = Math.Sqrt(data.Sum(x => x * x));
-                        return data.Select(x => x / s).ToArray();
+                        int count = list.Count;
+                        double[] array = list.Select(x => (double) x).ToArray();
+                        var input = new fftw_complexarray(array.Select(x => new Complex(x, 0)).ToArray());
+                        var output = new fftw_complexarray(count);
+                        fftw_plan.dft_1d(count, input, output, fftw_direction.Forward, fftw_flags.Estimate).Execute();
+                        Complex[] data = output.GetData_Complex();
+                        double s = Math.Sqrt(data.Select(x => x.Magnitude).Sum(x => x * x));
+                        return data.Select(x => x/s).ToArray();
                     }
                 }
             }

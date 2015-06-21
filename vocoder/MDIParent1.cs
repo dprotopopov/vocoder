@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Numerics;
 using System.Text;
 using System.Windows.Forms;
 using NAudio.Wave;
@@ -25,7 +26,7 @@ namespace vocoder
         public static Database Database = new Database();
 
         public static readonly Dictionary<int, double[]> ContactClassifier = new Dictionary<int, double[]>();
-        public static readonly Dictionary<string, double[]> SoundsClassifier = new Dictionary<string, double[]>();
+        public static readonly Dictionary<string, Complex[]> SoundsClassifier = new Dictionary<string, Complex[]>();
         private int _childFormNumber;
 
         public MdiParent1()
@@ -54,7 +55,7 @@ namespace vocoder
                 string word = sb.ToString();
                 Debug.WriteLine(word);
                 using (var builder = new SoundsBuilder(word, Duration, Frequency))
-                    SoundsClassifier.Add(word, builder.GetData());
+                    SoundsClassifier.Add(word, builder.GetData_Complex());
             }
         }
 

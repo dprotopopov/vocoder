@@ -2,9 +2,9 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Numerics;
 using FFTWSharp;
 using NAudio.Wave;
+using System.Numerics;
 
 namespace vocoder.ClassLibrary
 {
@@ -46,10 +46,14 @@ namespace vocoder.ClassLibrary
                         {
                             list.Add(reader.ReadInt16());
                         }
-                        var fftw = new fftw_complexarray(list.Select(x => (Complex) x).ToArray());
-                        double[] data = fftw.GetData_Real();
+                        int count = list.Count;
+                        double[] array = list.Select(x => (double) x).ToArray();
+                        var input = new fftw_complexarray(array.Select(x=>new Complex(x,0)).ToArray());
+                        var output = new fftw_complexarray(count);
+                        fftw_plan.dft_1d(count, input, output, fftw_direction.Forward, fftw_flags.Estimate).Execute();
+                        var data = output.GetData_Complex();
                         for (int i = 0; i < _length; i++)
-                            _data[i] = Math.Max(_data[i], Math.Abs(data[i]));
+                            _data[i] = Math.Max(_data[i], data[i].Magnitude);
                     }
                 }
                 catch
@@ -60,8 +64,8 @@ namespace vocoder.ClassLibrary
 
         public double[] GetData()
         {
-            double s = Math.Sqrt(_data.Sum(x => x*x));
-            return _data.Select(x => x/s).ToArray();
+            double s = Math.Sqrt(_data.Sum(x => x * x));
+            return _data.Select(x => x / s).ToArray();
         }
     }
 }

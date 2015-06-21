@@ -21,9 +21,10 @@ namespace vocoder
             get { return (double) numericUpDown3.Value; }
             set { numericUpDown3.Value = (decimal) value; }
         }
+
         public int Frequency
         {
-            get { return (int)numericUpDown2.Value; }
+            get { return (int) numericUpDown2.Value; }
             set { numericUpDown2.Value = value; }
         }
 

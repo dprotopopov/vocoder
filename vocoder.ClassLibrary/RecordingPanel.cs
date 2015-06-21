@@ -13,12 +13,11 @@ namespace vocoder.ClassLibrary
     [DefaultBindingProperty("Files")]
     public partial class RecordingPanel : UserControl
     {
+        public delegate void AudioFileHandler(object obj, string file);
+
         private string _outputFilename;
         private IWaveIn _waveIn;
         private WaveFileWriter _writer;
-        public event AudioFileHandler OnAddAudioFile;
-        public event AudioFileHandler OnDeleteAudioFile;
-        public delegate void AudioFileHandler(object obj, string file);
 
         public RecordingPanel()
         {
@@ -55,6 +54,9 @@ namespace vocoder.ClassLibrary
                     listBoxRecordings.Items.Add(item);
             }
         }
+
+        public event AudioFileHandler OnAddAudioFile;
+        public event AudioFileHandler OnDeleteAudioFile;
 
         private void OnRecordingPanelDisposed(object sender, EventArgs e)
         {
