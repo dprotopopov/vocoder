@@ -73,14 +73,14 @@ namespace vocoder
                 var soundCorrelations = new List<SoundCorrelation>();
                 foreach (var sound in MdiParent1.SoundsClassifier)
                 {
-                    string word = sound.Key;
+                    string phoneme = sound.Key;
                     var fftw = new fftw_complexarray(data.Zip(sound.Value, (x, y) => (Complex) (x*y)).ToArray());
                     List<double> array = fftw.GetData_Real().ToList();
                     array.Sort();
                     if (array.Count > MdiParent1.SinglePhonemeCount)
                         array.RemoveRange(0, array.Count - MdiParent1.SinglePhonemeCount);
                     soundCorrelations.AddRange(
-                        array.Select(value => new SoundCorrelation {Phoneme = word, Value = value}));
+                        array.Select(value => new SoundCorrelation {Phoneme = phoneme, Value = value}));
                     soundCorrelations.Sort();
                     if (soundCorrelations.Count > MdiParent1.TotalPhonemeCount)
                         soundCorrelations.RemoveRange(MdiParent1.TotalPhonemeCount,

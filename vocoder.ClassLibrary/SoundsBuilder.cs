@@ -59,7 +59,9 @@ namespace vocoder.ClassLibrary
                                 list.Add(0);
                         }
                         var fftw = new fftw_complexarray(list.Select(x => (Complex) Math.Abs(x)).ToArray());
-                        return fftw.GetData_Real();
+                        var data = fftw.GetData_Real();
+                        double s = Math.Sqrt(data.Sum(x => x * x));
+                        return data.Select(x => x / s).ToArray();
                     }
                 }
             }

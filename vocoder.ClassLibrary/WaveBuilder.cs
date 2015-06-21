@@ -11,6 +11,7 @@ namespace vocoder.ClassLibrary
     /// <summary>
     ///     Вычисление спектра огибающей функции.
     ///     Данные дополняются тишиной до заданной продолжительности.
+    ///     Данные записываются в обратном порядке.
     /// </summary>
     public class WaveBuilder : IDisposable
     {
