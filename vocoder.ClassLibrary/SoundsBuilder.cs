@@ -59,12 +59,12 @@ namespace vocoder.ClassLibrary
                                 list.Add(0);
                         }
                         int count = list.Count;
-                        double[] array = list.Select(x => (double) x).ToArray();
+                        double[] array = list.Select(x => (double) Math.Abs(x)).ToArray();
                         var input = new fftw_complexarray(array.Select(x => new Complex(x, 0)).ToArray());
                         var output = new fftw_complexarray(count);
                         fftw_plan.dft_1d(count, input, output, fftw_direction.Forward, fftw_flags.Estimate).Execute();
                         Complex[] data = output.GetData_Complex();
-                        double s = Math.Sqrt(data.Select(x => x.Magnitude).Sum(x => x * x));
+                        double s = Math.Sqrt(data.Select(x => x.Magnitude).Sum(x => x*x));
                         return data.Select(x => x/s).ToArray();
                     }
                 }

@@ -26,6 +26,7 @@ namespace vocoder
         public static Database Database = new Database();
 
         public static readonly Dictionary<int, double[]> ContactClassifier = new Dictionary<int, double[]>();
+        public static readonly List<KeyValuePair<int, Complex[]>> AudioFileClassifier = new List<KeyValuePair<int, Complex[]>>();
         public static readonly Dictionary<string, Complex[]> SoundsClassifier = new Dictionary<string, Complex[]>();
         private int _childFormNumber;
 
@@ -38,6 +39,7 @@ namespace vocoder
             Database.CreateDatabaseIfNotExists();
             Database.Connect();
             RebuildContactClassifier();
+            RebuildAudioFileClassifier();
             RebuildSampleClassifier();
         }
 
@@ -52,10 +54,24 @@ namespace vocoder
                 int index = 0;
                 for (long j = i; index++ < PhonemeLength; j /= alphabetLength)
                     sb.Append(Alphabet.Substring((int) (j%alphabetLength), 1));
-                string word = sb.ToString();
-                Debug.WriteLine(word);
-                using (var builder = new SoundsBuilder(word, Duration, Frequency))
-                    SoundsClassifier.Add(word, builder.GetData_Complex());
+                string phoneme = sb.ToString();
+                Debug.WriteLine(phoneme);
+                using (var builder = new SoundsBuilder(phoneme, Duration, Frequency))
+                    SoundsClassifier.Add(phoneme, builder.GetData_Complex());
+            }
+        }
+
+        private static void RebuildAudioFileClassifier()
+        {
+            AudioFileClassifier.Clear();
+            foreach (var audioFile in Database.Load(new AudioFile()))
+            {
+                using (var waveBuilder = new WaveBuilder(MdiParent1.Duration, MdiParent1.Frequency))
+                {
+                    using (var waveFileReader = new WaveFileReader(Path.Combine(MdiParent1.AudioFolder, Database.ConvertTo<string>(((AudioFile)audioFile).FileName))))
+                        waveBuilder.Add(waveFileReader);
+                    AudioFileClassifier.Add(new KeyValuePair<int, Complex[]>(Database.ConvertTo<int>(((AudioFile)audioFile).ContactId), waveBuilder.GetData_Complex()));
+                }
             }
         }
 
@@ -187,6 +203,7 @@ namespace vocoder
             var contactForm = new DatabaseForm();
             contactForm.ShowDialog();
             RebuildContactClassifier();
+            RebuildAudioFileClassifier();
         }
 
         private void saveToolStripMenuItem_Click(object sender, EventArgs e)
@@ -209,6 +226,7 @@ namespace vocoder
             Duration = optionsForm.Duration;
             RecordingPanel.AudioFolder = AudioFolder;
             RebuildContactClassifier();
+            RebuildAudioFileClassifier();
             RebuildSampleClassifier();
         }
     }

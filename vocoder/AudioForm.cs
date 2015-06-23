@@ -101,8 +101,10 @@ namespace vocoder
             Database database = MdiParent1.Database;
             Dictionary<int, Contact> dictionary =
                 database.Load(new Contact())
-                    .ToDictionary(contact => Database.ConvertTo<int>(((Contact) contact).Id),
-                        contact => (Contact) contact);
+                    .ToDictionary(record => Database.ConvertTo<int>(((Contact) record).Id),
+                        record => (Contact) record);
+            int id1;
+            int id2;
             using (var spectrumBuilder = new SpectrumBuilder(MdiParent1.SpectrumLength, MdiParent1.Frequency))
             {
                 foreach (string file in recordingPanel1.Files)
@@ -117,84 +119,90 @@ namespace vocoder
                         Value = new CorrelationBuilder(spectrumBuilder.GetData(), character.Value).GetValue()
                     }).ToList();
                 clientCorrelations.Sort();
-                int id = clientCorrelations[0].Id;
-                List<string> password;
-                List<string> password1;
-                using (var waveBuilder = new WaveBuilder(MdiParent1.Duration, MdiParent1.Frequency))
-                {
-                    foreach (Record audioFile in database.Load(new AudioFile {ContactId = id}))
-                        using (
-                            var waveFileReader =
-                                new WaveFileReader(Path.Combine(RecordingPanel.AudioFolder,
-                                    Database.ConvertTo<string>(((AudioFile) audioFile).FileName))))
-                            waveBuilder.Add(waveFileReader);
-                    Complex[] data = waveBuilder.GetData_Complex();
-                    var soundCorrelations = new List<SoundCorrelation>();
-                    foreach (var sound in MdiParent1.SoundsClassifier)
-                    {
-                        string phoneme = sound.Key;
-                        int count = data.Length;
-                        Complex[] complexs = data.Zip(sound.Value, (x, y) => (x*y)).ToArray();
-                        var input = new fftw_complexarray(complexs);
-                        var output = new fftw_complexarray(count);
-                        fftw_plan.dft_1d(count, input, output, fftw_direction.Backward, fftw_flags.Estimate).Execute();
-                        List<double> list = output.GetData_Real().ToList();
-                        list.Sort();
-                        if (list.Count > MdiParent1.SinglePhonemeCount)
-                            list.RemoveRange(0, list.Count - MdiParent1.SinglePhonemeCount);
-                        soundCorrelations.AddRange(
-                            list.Select(value => new SoundCorrelation {Phoneme = phoneme, Value = value}));
-                        soundCorrelations.Sort();
-                        if (soundCorrelations.Count > MdiParent1.TotalPhonemeCount)
-                            soundCorrelations.RemoveRange(MdiParent1.TotalPhonemeCount,
-                                soundCorrelations.Count - MdiParent1.TotalPhonemeCount);
-                    }
-                    password = soundCorrelations.Select(soundCorrelation => soundCorrelation.Phoneme).ToList();
-                    password.Sort();
-                }
-                using (var waveBuilder = new WaveBuilder(MdiParent1.Duration, MdiParent1.Frequency))
-                {
-                    foreach (string file in recordingPanel1.Files)
-                        using (var waveFileReader = new WaveFileReader(Path.Combine(RecordingPanel.AudioFolder, file)))
-                            waveBuilder.Add(waveFileReader);
-                    Complex[] data = waveBuilder.GetData_Complex();
-                    var soundCorrelations = new List<SoundCorrelation>();
-                    foreach (var sound in MdiParent1.SoundsClassifier)
-                    {
-                        string phoneme = sound.Key;
-                        int count = data.Length;
-                        Complex[] complexs = data.Zip(sound.Value, (x, y) => (x*y)).ToArray();
-                        var input = new fftw_complexarray(complexs);
-                        var output = new fftw_complexarray(count);
-                        fftw_plan.dft_1d(count, input, output, fftw_direction.Backward, fftw_flags.Estimate).Execute();
-                        List<double> list = output.GetData_Real().ToList();
-                        list.Sort();
-                        if (list.Count > MdiParent1.SinglePhonemeCount)
-                            list.RemoveRange(0, list.Count - MdiParent1.SinglePhonemeCount);
-                        soundCorrelations.AddRange(
-                            list.Select(value => new SoundCorrelation {Phoneme = phoneme, Value = value}));
-                        soundCorrelations.Sort();
-                        if (soundCorrelations.Count > MdiParent1.TotalPhonemeCount)
-                            soundCorrelations.RemoveRange(MdiParent1.TotalPhonemeCount,
-                                soundCorrelations.Count - MdiParent1.TotalPhonemeCount);
-                    }
-                    password1 = soundCorrelations.Select(soundCorrelation => soundCorrelation.Phoneme).ToList();
-                    password1.Sort();
-                }
-                var contact = (Contact) database.Load(new Contact {Id = id}).First();
-                var accessGrantedForm = new AccessGrantedForm(password.SequenceEqual(password1))
-                {
-                    Id = Database.ConvertTo<int>(contact.Id),
-                    FirstName = Database.ConvertTo<string>(contact.FirstName),
-                    LastName = Database.ConvertTo<string>(contact.LastName),
-                    Phone = Database.ConvertTo<string>(contact.Phone),
-                    Email = Database.ConvertTo<string>(contact.Email),
-                };
-                accessGrantedForm.ShowDialog();
+                id1 = clientCorrelations[0].Id;
             }
+
+            var list = new List<ClientCorrelation>();
+
+            foreach (string file in recordingPanel1.Files)
+            {
+                using (var waveFileReader = new WaveFileReader(Path.Combine(RecordingPanel.AudioFolder, file)))
+                {
+                    using (var waveBuilder = new WaveBuilder(MdiParent1.Duration, MdiParent1.Frequency))
+                    {
+                        waveBuilder.Add(waveFileReader);
+                        Complex[] data = waveBuilder.GetData_Complex(true);
+                        foreach (var audioFile in MdiParent1.AudioFileClassifier)
+                        {
+                            int count = data.Length;
+                            var input = new fftw_complexarray(data.Zip(audioFile.Value, (x, y) => (x*y)).ToArray());
+                            var output = new fftw_complexarray(count);
+                            fftw_plan.dft_1d(count, input, output, fftw_direction.Forward, fftw_flags.Estimate)
+                                .Execute();
+                            double value = output.GetData_Complex().Select(x => x.Magnitude).Max();
+                            list.Add(new ClientCorrelation
+                            {
+                                Id = audioFile.Key,
+                                Value = value
+                            });
+                        }
+                    }
+                }
+            }
+            list.Sort();
+            id2 = list.First().Id;
+            var contact = (Contact) database.Load(new Contact {Id = id1}).First();
+            var accessGrantedForm = new AccessGrantedForm(id1 == id2)
+            {
+                Id = Database.ConvertTo<int>(contact.Id),
+                FirstName = Database.ConvertTo<string>(contact.FirstName),
+                LastName = Database.ConvertTo<string>(contact.LastName),
+                Phone = Database.ConvertTo<string>(contact.Phone),
+                Email = Database.ConvertTo<string>(contact.Email),
+            };
+            accessGrantedForm.ShowDialog();
         }
 
-        private class ClientCorrelation : IComparable<ClientCorrelation>
+        private void button5_Click(object sender, EventArgs e)
+        {
+            Database database = MdiParent1.Database;
+            var list = new List<ClientCorrelation>();
+            Dictionary<int, Contact> dictionary =
+                database.Load(new Contact())
+                    .ToDictionary(contact => Database.ConvertTo<int>(((Contact) contact).Id),
+                        contact => (Contact) contact);
+            foreach (string file in recordingPanel1.Files)
+            {
+                using (var waveFileReader = new WaveFileReader(Path.Combine(RecordingPanel.AudioFolder, file)))
+                {
+                    using (var waveBuilder = new WaveBuilder(MdiParent1.Duration, MdiParent1.Frequency))
+                    {
+                        waveBuilder.Add(waveFileReader);
+                        Complex[] data = waveBuilder.GetData_Complex(true);
+                        foreach (var audioFile in MdiParent1.AudioFileClassifier)
+                        {
+                            int count = data.Length;
+                            var input = new fftw_complexarray(data.Zip(audioFile.Value, (x, y) => (x*y)).ToArray());
+                            var output = new fftw_complexarray(count);
+                            fftw_plan.dft_1d(count, input, output, fftw_direction.Forward, fftw_flags.Estimate)
+                                .Execute();
+                            double value = output.GetData_Complex().Select(x => x.Magnitude).Max();
+                            list.Add(new ClientCorrelation
+                            {
+                                Id = audioFile.Key,
+                                Value = value
+                            });
+                        }
+                    }
+                }
+            }
+            list.Sort();
+            var listBoxForm = new ListBoxForm(list.Select(item => dictionary[item.Id]).Cast<object>(),
+                list.Select(item => item.Value));
+            listBoxForm.ShowDialog();
+        }
+
+        public class ClientCorrelation : IComparable<ClientCorrelation>
         {
             public int Id { get; set; }
             public double Value { get; set; }
